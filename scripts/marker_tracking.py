@@ -30,7 +30,7 @@ def main():
     rospy.init_node("node_marker_tracking")
     
     # Load the video file
-    video_capture = cv2.VideoCapture('/home/localise_rover/catkin_ws/src/sub_marker_tracking/videos/Board_Test_1.MOV')
+    video_capture = cv2.VideoCapture('/home/localise_rover/catkin_ws/src/Localisation-System/videos/Board_Test2.MOV')
     
     # Create a dictionary of markers (retrieve information for marker recognition)
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
@@ -67,8 +67,8 @@ def main():
                 frame_markers = cv2.drawFrameAxes(frame_markers, camera_matrix, dist_coeffs, rvecs[0], tvecs[0], 0.1)
                 x, y, z = tvecs[0][0]
                  # Log the rover's center position (TOGGLE FOR DEBUGGING)
-                #rospy.loginfo(f"DEBUGGING MARKER POS -> x: {x}, y: {y}, z: {z}")
-                x_rvec, y_rvec, z_rvec = rvecs[0][0]
+                rospy.loginfo(f"DEBUGGING MARKER POS -> x: {x}, y: {y}, z: {z}")
+                x_rvec, z_rvec, y_rvec = rvecs[0][0]
                 x_deg, y_deg, z_deg = np.degrees([x_rvec, y_rvec, z_rvec])
 
                 #------------------PUBLISH POSE INFORMATION (x, y, z, qx, qy, qz, qw)----------------------#
@@ -101,15 +101,22 @@ def main():
             cv2.putText(frame_markers, rotation_text, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), font_thickness, cv2.LINE_AA)
         
             # -------------------- Draw Rover Center Dot -------------------- #
-            #point_3d = np.array([rover_position])
-            # Project the 3D point to 2D
-            #point_2d, _ = cv2.projectPoints(point_3d, np.zeros((3, 1)), np.zeros((3, 1)), camera_matrix, dist_coeffs)
-            # Print the projected point [TOGGLE for DEBUGGING]
-            #print("Projected 2D point:", point_2d)
-            # Draw the point on the image
-            #pixel_coordinates = tuple(int(c) for c in point_2d.ravel())
-            #cv2.circle(frame_markers, pixel_coordinates, 10, (0, 255, 0), -1)
-            #cv2.circle(frame_markers, np.array([point_3d[0], point_3d[1]]), 10, (0, 255, 0), -1)
+            if rover_position is not None:
+                # Convert rover_position to a 2D array with shape (1, 3)
+                point_3d = np.array([rover_position])                
+                # Print the shape of rover_position for debugging
+                #rospy.loginfo(f"rover_position 3D: {point_3d}")
+                
+                # Project the 3D point to 2D
+                point_2d, _ = cv2.projectPoints(point_3d, np.zeros((3, 1)), np.zeros((3, 1)), camera_matrix, dist_coeffs)               
+                # Print the projected point [TOGGLE for DEBUGGING]
+                #rospy.loginfo(f"Projected 2D: {point_2d}")
+
+                # Draw the point on the image
+                pixel_coordinates = tuple(int(c) for c in point_2d.ravel())
+                cv2.circle(frame_markers, pixel_coordinates, 10, (0, 255, 0), -1)
+            else:
+                rospy.logwarn("rover_position is None, skipping projection.")
             # --------------------------------------------------------------- #
 
         cv2.imshow('Frame with Pose Estimation', frame_markers)
