@@ -3,6 +3,8 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 import tf.transformations
 import numpy as np
+import tf.transformations  # Use tf.transformations instead of tf_conversions
+import tf2_ros
 
 def pose_callback(msg):
         # Extract rotation matrix from Quaternion
@@ -14,7 +16,7 @@ def pose_callback(msg):
         #print(rotation_matrix[0][3], rotation_matrix[1][3], rotation_matrix[2][3])
 
         # Offset vector in the marker's local coordinate frame
-        offset_vector = [0.289, 0.0, 0.0, 1.0]  # 28.9 cm along the x-axis of the marker
+        offset_vector = [-0.289, 0.0, 0.0, 1.0]  # 28.9 cm along the x-axis of the marker
         # Calculate the non-static directional offset vector (rotation matrix x offset vector)
         transformed_offset = rotation_matrix.dot(offset_vector)
         # Add the transformed offset to the marker's position to get the rover's center position
