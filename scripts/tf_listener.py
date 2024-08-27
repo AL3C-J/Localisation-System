@@ -20,7 +20,7 @@ def main():
     while not rospy.is_shutdown():
         try:
             # Get the transform from 'map' to 'base_link'
-            transform = tf_buffer.lookup_transform('map', 'base_link', rospy.Time(0))
+            transform = tf_buffer.lookup_transform('camera_frame', 'base_link', rospy.Time(0))
 
             # Extract translation components (x, y, z)
             x = transform.transform.translation.x

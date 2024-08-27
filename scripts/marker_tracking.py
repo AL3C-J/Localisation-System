@@ -60,18 +60,12 @@ def main():
     rospy.init_node("node_marker_tracking")
     
     # Load the video file
-    video_capture = cv2.VideoCapture('/home/localise_rover/catkin_ws/src/Localisation-System/videos/rotate_rover_test_3.MOV')
+    video_capture = cv2.VideoCapture('/home/localise_rover/catkin_ws/src/Localisation-System/videos/test_video_pass2.mov')
     
     # Create a dictionary of markers (retrieve information for marker recognition)
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
     parameters = cv2.aruco.DetectorParameters_create()
-    
-    #--------------------------SET UP PUBLISHER----------------------------#
-    marker_pose_pub = rospy.Publisher('/marker_pose', PoseStamped, queue_size=10)
-    
-    #--------------------------SET UP SUBSCRIBER----------------------------#
-    rospy.Subscriber('/rover_pose', PoseStamped, rover_pose_callback)
-    
+     
     rate = rospy.Rate(10)  # 10 Hz
 
     tf_buffer = tf2_ros.Buffer()
@@ -132,21 +126,6 @@ def main():
                 qy = q[1]
                 qz = q[2]
                 qw = q[3]
-                
-                pose_msg = PoseStamped()
-                pose_msg.header.stamp = rospy.Time.now()
-                pose_msg.header.frame_id = "marker_frame"
-
-                pose_msg.pose.position.x = float(x)
-                pose_msg.pose.position.y = float(y)
-                pose_msg.pose.position.z = float(z)
-                
-                pose_msg.pose.orientation.x = qx
-                pose_msg.pose.orientation.y = qy
-                pose_msg.pose.orientation.z = qz
-                pose_msg.pose.orientation.w = qw
-
-                marker_pose_pub.publish(pose_msg)
 
                 #-------------BROADCAST TRAN-------------#
 
@@ -168,7 +147,8 @@ def main():
                 
                 try:
                     # Get the transform from 'map' to 'base_link'
-                    transform = tf_buffer.lookup_transform('base_link', 'marker_frame', rospy.Time(0))
+                    #transform = tf_buffer.lookup_transform('base_link', 'marker_frame', rospy.Time(0))
+                    transform = tf_buffer.lookup_transform('camera_frame', 'base_link', rospy.Time(0))
 
                     # Extract translation components (x, y, z)
                     x_base_link = transform.transform.translation.x
