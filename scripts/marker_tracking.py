@@ -6,7 +6,10 @@ import rospy
 from tf.transformations import quaternion_from_euler
 import tf2_ros
 import geometry_msgs.msg
+from geometry_msgs.msg import PoseStamped
 import math
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import Image
 
 #-------------- Parameters -----------------#
 camera_matrix = np.array([
@@ -42,32 +45,43 @@ def rotation_matrix_to_euler_angles(R):
 
 # Global variable to store the latest rover position
 rover_position = None
+video_capture = None
 
 def rover_pose_callback(msg):
     global rover_position
     # Store the received rover position for use in the main loop
     rover_position = (msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
 
+def callback(data):
+    global video_capture
+    bridge = CvBridge()  
+    try:
+      video_capture = bridge.imgmsg_to_cv2(data, "bgr8")
+    except CvBridgeError as e:
+      print(e)
+
 def main():
+    
     rospy.init_node("node_marker_tracking")  
-    # Load the video file
-    video_capture = cv2.VideoCapture('/home/localise_rover/catkin_ws/src/Localisation-System/videos/rotate_rover_test_3.MOV')
+    
+    global video_capture
     
     # Create a dictionary of markers (retrieve information for marker recognition)
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
     parameters = cv2.aruco.DetectorParameters_create()
      
-    rate = rospy.Rate(10)  # 10 Hz
+    rate = rospy.Rate(30)  # 30 Hz
 
     tf_buffer = tf2_ros.Buffer()
-    tf_listener = tf2_ros.TransformListener(tf_buffer)
+    tf_listener = tf2_ros.TransformListener(tf_buffer) #dont remove
+   
+    marker_pose_pub = rospy.Publisher('/rover_centre', PoseStamped, queue_size=10) #Pose publisher
 
+    rospy.Subscriber("/camera/color/image_raw",Image,callback)
+    rospy.sleep(3)
     # ======================= Enter Main loop =============================#
     while not rospy.is_shutdown():
-        ret, frame = video_capture.read()
-        if not ret:
-            rospy.loginfo("End of Video Clip")
-            break
+        frame = video_capture
 
         # Convert frames to grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -128,20 +142,37 @@ def main():
                     y_base_link = transform.transform.translation.y
                     z_base_link = transform.transform.translation.z
 
+                    # Publish the marker pose
+                    pose_msg = PoseStamped()
+                    pose_msg.header.stamp = rospy.Time.now()
+                    pose_msg.header.frame_id = "base_link"
+                    pose_msg.pose.position.x = x_base_link
+                    pose_msg.pose.position.y = y_base_link
+                    pose_msg.pose.position.z = z_base_link
+                    
+                    pose_msg.pose.orientation.x = transform.transform.rotation.x
+                    pose_msg.pose.orientation.y = transform.transform.rotation.y
+                    pose_msg.pose.orientation.z = transform.transform.rotation.z
+                    pose_msg.pose.orientation.w = transform.transform.rotation.w
+                    
+                    marker_pose_pub.publish(pose_msg)
+
                 except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
                     rospy.logwarn(f"Transform error: {e}")
 
+
+
                 #----------------------------------Display 6-States on Screen------------------------------#
-            position_text = f"Marker Pos (x,y,z): {x:.2f}, {y:.2f}, {z:.2f} meters"
-            rotation_text = f"Rover Pos (x,y,z): {x_base_link:.2f}, {y_base_link:.2f}, {z_base_link:.2f} meters"
+            marker_centre = f"Marker Pos (x,y,z): {x:.2f}, {y:.2f}, {z:.2f} meters"
+            rover_centre = f"Rover Pos (x,y,z): {x_base_link:.2f}, {y_base_link:.2f}, {z_base_link:.2f} meters"
             font_scale = 1  
             font_thickness = 2  
-            max_text_width = max(cv2.getTextSize(position_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0][0],
-                                cv2.getTextSize(rotation_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0][0])
-            total_text_height = cv2.getTextSize(position_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0][1] * 2 + 40
+            max_text_width = max(cv2.getTextSize(marker_centre, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0][0],
+                                cv2.getTextSize(rover_centre, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0][0])
+            total_text_height = cv2.getTextSize(marker_centre, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0][1] * 2 + 40
             cv2.rectangle(frame_markers, (10, 30), (10 + max_text_width + 20, 30 + total_text_height), (255, 255, 255), cv2.FILLED)
-            cv2.putText(frame_markers, position_text, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), font_thickness, cv2.LINE_AA)
-            cv2.putText(frame_markers, rotation_text, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), font_thickness, cv2.LINE_AA)
+            cv2.putText(frame_markers, marker_centre, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), font_thickness, cv2.LINE_AA)
+            cv2.putText(frame_markers, rover_centre, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), font_thickness, cv2.LINE_AA)
         
             # -------------------- Draw Rover Center Dot -------------------- #           
             point_3d = np.array([[x_base_link, y_base_link, z_base_link]], dtype=np.float64)                       
@@ -158,8 +189,6 @@ def main():
             break
 
         rate.sleep()
-
-    video_capture.release()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':

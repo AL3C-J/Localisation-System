@@ -1,3 +1,11 @@
 <launch>
+
 <node pkg="tf" type="static_transform_publisher" name="robot_tf_broadcaster" args="-0.289 0 0 0 0 0 1 marker_frame base_link 100" />
+
+<node pkg="Localisation-System" type="marker_tracking.py" name="marker_tracking_script"/>
+
+<include file="$(find realsense2_camera)/launch/rs_camera.launch" />
+
 </launch>
+
+
