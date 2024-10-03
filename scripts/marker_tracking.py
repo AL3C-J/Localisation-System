@@ -12,12 +12,21 @@ from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 
 #-------------- Parameters -----------------#
+#Iphone8+ Camera:
+#camera_matrix = np.array([
+#    [1764.9,    0,     1010.9],  
+#    [   0,     1769.5, 513.4],  
+#    [   0,        0,    0.001]   
+#])
+#dist_coeffs = np.array([0.2929, -1.1367, 0, 0, 0])
+#RealSense:
 camera_matrix = np.array([
-    [1764.9,    0,     1010.9],  
-    [   0,     1769.5, 513.4],  
-    [   0,        0,    0.001]   
-])#Iphone8+ Camera callibration matrices
-dist_coeffs = np.array([0.2929, -1.1367, 0, 0, 0])
+    [1375.5,    0,     977.4],  
+    [   0,     1376.7, 555.5],  
+    [   0,        0,    1]   
+])
+dist_coeffs = np.array([0.1196, -0.2006, 0, 0, 0])
+
 # (ID : Size in meters)
 marker_sizes = {
     5: 0.081  } 
@@ -82,6 +91,8 @@ def main():
     # ======================= Enter Main loop =============================#
     while not rospy.is_shutdown():
         frame = video_capture
+        # Print the resolution of the original frame
+        print(video_capture.shape)
 
         # Convert frames to grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -106,9 +117,9 @@ def main():
                 rotation_matrix, _ = cv2.Rodrigues(rvecs)
                 # Optional: Convert rotation matrix to Euler angles
                 euler_angles = rotation_matrix_to_euler_angles(rotation_matrix)
-                euler_angles_deg = np.degrees(euler_angles)               
+                #euler_angles_deg = np.degrees(euler_angles)               
 
-                print("Euler Angles (degrees):", euler_angles_deg)
+                #print("Euler Angles (degrees):", euler_angles_deg)
 
                 x_rvec, y_rvec, z_rvec = euler_angles[0], euler_angles[1], euler_angles[2]
                                       
